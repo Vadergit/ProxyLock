@@ -46,8 +46,8 @@ fertigen Image kompatibel.
 ## Schnellstart mit fertiger Firmware
 
 Die vollständige 4-MB-Firmware befindet sich unter
-[`firmware/proxylock-esp32s3-4mb-v0.4.0.bin`](firmware/proxylock-esp32s3-4mb-v0.4.0.bin)
-und zusätzlich im GitHub-Release `v0.4.0`.
+[`firmware/proxylock-esp32s3-4mb-v0.4.1.bin`](firmware/proxylock-esp32s3-4mb-v0.4.1.bin)
+und zusätzlich im GitHub-Release `v0.4.1`.
 
 ### 1. Flashmodus aktivieren
 
@@ -75,13 +75,13 @@ Firmware unter macOS/Linux flashen (Port entsprechend ersetzen):
 ```sh
 python3 -m esptool --chip esp32s3 \
   --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.0.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.1.bin
 ```
 
 Unter Windows sieht der Port beispielsweise so aus:
 
 ```powershell
-py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.0.bin
+py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.1.bin
 ```
 
 Danach das Board kurz trennen und ohne gedrückte BOOT-Taste wieder verbinden.
@@ -92,8 +92,9 @@ Danach das Board kurz trennen und ohne gedrückte BOOT-Taste wieder verbinden.
 2. Das Portal sollte automatisch erscheinen. Andernfalls im Browser
    **http://192.168.4.1** öffnen.
 3. Windows oder macOS auswählen.
-4. Computer-Anmeldepasswort eingeben. Das Feld darf auch leer bleiben, wenn nur
-   Sperren oder Aufwecken getestet werden soll.
+4. Unter Windows die aktuell ausgewählte **Windows-Hello-PIN oder das Kennwort**
+   eingeben. Das Feld darf auch leer bleiben, wenn nur Sperren oder Aufwecken
+   getestet werden soll.
 5. Gewünschten Schaltabstand und RSSI-Wert bei einem Meter einstellen.
 6. Bluetooth-Namen und sechsstelligen Kopplungscode festlegen.
 7. Optional **„Portal mit Passwort schützen“** aktivieren und ein Passwort mit
@@ -118,6 +119,23 @@ Distanz berechnet.
 Windows wird mit `Windows + L`, macOS mit `Control + Command + Q` gesperrt.
 Filterung und Haltezeiten vermeiden möglichst, dass einzelne RSSI-Ausreißer
 sofort eine Aktion auslösen.
+
+### Windows meldet „falsches Passwort“
+
+- Auf dem Windows-Anmeldebildschirm unter **Anmeldeoptionen** kontrollieren, ob
+  gerade PIN oder Kennwort ausgewählt ist. ProxyLock muss genau diesen Wert senden.
+- Die **Wartezeit nach Aufwecken** zunächst auf `2000 ms` stellen.
+- Die **Pause pro Zeichen** zunächst auf `50 ms` stellen.
+- Das Passwort testweise in einem leeren Editorfeld ausgeben lassen und prüfen,
+  ob Zeichen fehlen oder vertauscht sind.
+- ProxyLock verwendet für druckbare Zeichen eine US-Tastenbelegung. Bei Schweizer
+  oder deutscher Windows-Belegung unterscheiden sich insbesondere `Y/Z` und
+  Sonderzeichen. Für den ersten Test nur Ziffern und layoutgleiche Buchstaben
+  verwenden oder den Anmeldebildschirm auf US-Layout stellen.
+
+Ab Version 0.4.1 leert ProxyLock das Windows-Eingabefeld vor der Eingabe, wartet
+konfigurierbar auf den Anmeldebildschirm und sendet jedes Zeichen mit einer
+separaten Pause.
 
 ## Abstand richtig einstellen
 
@@ -164,7 +182,7 @@ gelöscht und ProxyLock neu eingerichtet werden:
 ```sh
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 erase-flash
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.0.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.1.bin
 ```
 
 Unter Windows den Port und `python3` entsprechend durch `COM…` und `py` ersetzen.

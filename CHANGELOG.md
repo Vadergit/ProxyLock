@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 – 2026-09-15
+
+- Windows-Aufwachzeit im Portal konfigurierbar gemacht.
+- Konfigurierbare Pause zwischen einzelnen Zeichen ergänzt.
+- Windows-Eingabefeld vor der Anmeldung zuverlässig geleert.
+- Hinweis auf Windows-Hello-PIN und Tastaturlayout ergänzt.
+- Nicht unterstützte Nicht-ASCII-Zeichen sicher abgewiesen.
+
 ## 0.4.0 – 2026-09-11
 
 - Projekt und alle sichtbaren Gerätenamen in ProxyLock umbenannt.
