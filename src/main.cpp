@@ -14,7 +14,7 @@
 #include "config.h"
 
 namespace {
-constexpr char kFirmwareVersion[] = "0.5.0";
+constexpr char kFirmwareVersion[] = "0.5.1";
 const IPAddress kPortalIp(192, 168, 4, 1);
 constexpr uint32_t kPortalWindowMs = 5UL * 60UL * 1000UL;
 constexpr uint32_t kLoginBlockMs = 30UL * 1000UL;
@@ -29,7 +29,7 @@ struct DeviceConfig {
   float distanceMetres = 2.0F;
   int rssiAtOneMetre = -59;
   String loginPassword;
-  uint16_t wakeDelayMs = 200;
+  uint16_t wakeDelayMs = 2000;
   uint8_t keyDelayMs = 10;
   uint8_t keyboardLayout = 0;  // 0 = US, 1 = German (Switzerland)
   bool keepAwakeEnabled = false;
@@ -136,7 +136,7 @@ void loadConfig() {
   config.distanceMetres = preferences.getFloat("distance", 2.0F);
   config.rssiAtOneMetre = preferences.getInt("rssi1m", -59);
   config.loginPassword = preferences.getString("login_pw", "");
-  config.wakeDelayMs = static_cast<uint16_t>(preferences.getUInt("wake_ms", 200U));
+  config.wakeDelayMs = static_cast<uint16_t>(preferences.getUInt("wake_ms", 2000U));
   config.keyDelayMs = static_cast<uint8_t>(preferences.getUInt("key_ms", 10U));
   config.keyboardLayout = static_cast<uint8_t>(preferences.getUInt("kbd_layout", 0U));
   config.keepAwakeEnabled = preferences.getBool("keep_awake", false);
@@ -149,7 +149,7 @@ void loadConfig() {
   config.rssiAtOneMetre = constrain(config.rssiAtOneMetre, -90, -30);
   if (config.bleName.isEmpty() || config.bleName.length() > 20) config.bleName = "ProxyLock";
   if (config.blePasskey < 100000 || config.blePasskey > 999999) config.blePasskey = 123456;
-  config.wakeDelayMs = constrain(config.wakeDelayMs, 100, 5000);
+  config.wakeDelayMs = constrain(config.wakeDelayMs, 500, 10000);
   config.keyDelayMs = constrain(config.keyDelayMs, 5, 150);
   if (!preferences.getBool("timing_v2", false)) {
     config.wakeDelayMs = 200;
@@ -157,6 +157,13 @@ void loadConfig() {
     preferences.putUInt("wake_ms", config.wakeDelayMs);
     preferences.putUInt("key_ms", config.keyDelayMs);
     preferences.putBool("timing_v2", true);
+  }
+  // v0.5.1 separates waking Windows from opening its sign-in screen. Existing
+  // installations using the former 200 ms default need enough resume time too.
+  if (!preferences.getBool("wake_v3", false)) {
+    if (config.wakeDelayMs < 1000) config.wakeDelayMs = 2000;
+    preferences.putUInt("wake_ms", config.wakeDelayMs);
+    preferences.putBool("wake_v3", true);
   }
   if (config.keyboardLayout > 1) config.keyboardLayout = 0;
   config.keepAwakeIntervalSeconds = constrain(
@@ -230,9 +237,9 @@ void sendSetupPage(const String& error = "") {
   body += config.keyboardLayout == 1 ? F("<option value='us'>English (US)</option><option value='ch' selected>Deutsch (Schweiz)</option>") : F("<option value='us' selected>English (US)</option><option value='ch'>Deutsch (Schweiz)</option>");
   body += F("</select></div><div><label for='distance'>Schaltabstand in Metern</label><input id='distance' name='distance' type='number' min='.2' max='10' step='.1' value='");
   body += String(config.distanceMetres, 1);
-  body += F("' required></div><div><label for='wake_delay'>Wartezeit nach Aufwecken (ms)</label><input id='wake_delay' name='wake_delay' type='number' min='100' max='5000' step='50' value='");
+  body += F("' required></div><div><label for='wake_delay'>Wartezeit nach Weckimpuls (ms)</label><input id='wake_delay' name='wake_delay' type='number' min='500' max='10000' step='100' value='");
   body += String(config.wakeDelayMs);
-  body += F("' required><div class='hint'>Standard: 200 ms. Bei Bedarf erhöhen.</div></div><div><label for='key_delay'>Pause pro Zeichen (ms)</label><input id='key_delay' name='key_delay' type='number' min='5' max='150' step='5' value='");
+  body += F("' required><div class='hint'>Standard: 2000 ms. Bei langsamem Aufwachen erhöhen.</div></div><div><label for='key_delay'>Pause pro Zeichen (ms)</label><input id='key_delay' name='key_delay' type='number' min='5' max='150' step='5' value='");
   body += String(config.keyDelayMs);
   body += F("' required><div class='hint'>Bei fehlenden Zeichen auf 50–80 ms erhöhen.</div></div><div class='full'><label style='font-weight:500'><input style='width:auto;margin-right:7px' type='checkbox' name='keep_awake' value='1'");
   if (config.keepAwakeEnabled) body += F(" checked");
@@ -296,7 +303,7 @@ void handleSave() {
                                 portalPassword != portalPasswordConfirm);
   if (!validBleName(name) || pinText.length() != 6 || pinText.toInt() < 100000 ||
       distance < 0.2F || distance > 10.0F || calibration < -90 || calibration > -30 ||
-      wakeDelay < 100 || wakeDelay > 5000 || keyDelay < 5 || keyDelay > 150 ||
+      wakeDelay < 500 || wakeDelay > 10000 || keyDelay < 5 || keyDelay > 150 ||
       (keyboardLayout != "us" && keyboardLayout != "ch") ||
       keepAwakeInterval < 15 || keepAwakeInterval > 300 ||
       !validLoginPassword(newLoginPassword) || passwordInvalid) {
@@ -506,9 +513,19 @@ void sendPasswordCharacter(char character) {
 
 void sendNearAction() {
   if (!Config::kUsbActionsEnabled) return;
-  keyboard.write(' ');
-  delay(config.wakeDelayMs);
-  if (!config.macOs) {
+  if (config.macOs) {
+    // Keep the established macOS sequence, which wakes and focuses the login
+    // field reliably on the tested setup.
+    keyboard.write(' ');
+    delay(config.wakeDelayMs);
+  } else {
+    // A first, otherwise unused key wakes a sleeping display/PC. Only after
+    // Windows had time to resume do we open the actual sign-in screen.
+    keyboard.write(KEY_F24);
+    delay(config.wakeDelayMs);
+    keyboard.write(' ');
+    delay(500);
+
     // When Windows already shows the input field, the wake-up space can land
     // in it. Clear any existing input before entering the configured secret.
     keyboard.press(KEY_LEFT_CTRL);

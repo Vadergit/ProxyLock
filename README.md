@@ -47,8 +47,8 @@ fertigen Image kompatibel.
 ## Schnellstart mit fertiger Firmware
 
 Die vollständige 4-MB-Firmware befindet sich unter
-[`firmware/proxylock-esp32s3-4mb-v0.5.0.bin`](firmware/proxylock-esp32s3-4mb-v0.5.0.bin)
-und zusätzlich im GitHub-Release `v0.5.0`.
+[`firmware/proxylock-esp32s3-4mb-v0.5.1.bin`](firmware/proxylock-esp32s3-4mb-v0.5.1.bin)
+und zusätzlich im GitHub-Release `v0.5.1`.
 
 ### 1. Flashmodus aktivieren
 
@@ -76,13 +76,13 @@ Firmware unter macOS/Linux flashen (Port entsprechend ersetzen):
 ```sh
 python3 -m esptool --chip esp32s3 \
   --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.0.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.1.bin
 ```
 
 Unter Windows sieht der Port beispielsweise so aus:
 
 ```powershell
-py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.0.bin
+py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.1.bin
 ```
 
 Danach das Board kurz trennen und ohne gedrückte BOOT-Taste wieder verbinden.
@@ -112,8 +112,9 @@ ProxyLock hält eine gebondete BLE-Verbindung zum Telefon und liest regelmäßig
 deren RSSI. Daraus wird mit einer kalibrierbaren Näherungsformel eine ungefähre
 Distanz berechnet.
 
-- näher als der Grenzwert für mindestens 0,4 s: Bildschirm aufwecken,
-  Computerpasswort eingeben und Enter senden;
+- näher als der Grenzwert für mindestens 0,4 s: Bildschirm mit einem separaten
+  F24-Impuls aufwecken, die konfigurierte Resume-Zeit abwarten, den
+  Anmeldebildschirm öffnen und erst dann Computerpasswort plus Enter senden;
 - weiter entfernt als der Grenzwert für mindestens 5 s: Computer sperren;
 - BLE-Verbindungsverlust für mindestens 5 s: Computer sperren.
 
@@ -128,7 +129,8 @@ sofort eine Aktion auslösen.
 - Im Portal dasselbe Tastaturlayout wie am Windows-Anmeldebildschirm auswählen.
   Für Schweizer Windows-Systeme ist das **Deutsch (Schweiz)**. Damit werden unter
   anderem `Y/Z`, `*`, Klammern und weitere ASCII-Sonderzeichen korrekt umgesetzt.
-- Die **Wartezeit nach Aufwecken** zunächst auf `2000 ms` stellen.
+- Die **Wartezeit nach Weckimpuls** zunächst auf `2000 ms` stellen. Bei einem
+  besonders langsam aufwachenden PC auf `3000–5000 ms` erhöhen.
 - Die **Pause pro Zeichen** zunächst auf `50 ms` stellen.
 - Das Passwort testweise in einem leeren Editorfeld ausgeben lassen und prüfen,
   ob Zeichen fehlen oder vertauscht sind.
@@ -137,7 +139,9 @@ sofort eine Aktion auslösen.
 
 Ab Version 0.4.1 leert ProxyLock das Windows-Eingabefeld vor der Eingabe, wartet
 konfigurierbar auf den Anmeldebildschirm und sendet jedes Zeichen mit einer
-separaten Pause. Seit Version 0.4.3 sind die Standardwerte `200 ms` und `10 ms`.
+separaten Pause. Seit Version 0.5.1 wird Windows zuerst mit einem eigenen
+F24-Impuls geweckt; Standardwerte sind `2000 ms` Resume-Zeit und `10 ms`
+Zeichenpause.
 
 ## Keep-awake
 
@@ -196,7 +200,7 @@ gelöscht und ProxyLock neu eingerichtet werden:
 ```sh
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 erase-flash
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.0.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.1.bin
 ```
 
 Unter Windows den Port und `python3` entsprechend durch `COM…` und `py` ersetzen.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 – 2026-09-15
+
+- Windows-Aufwecken und Anmeldung in zwei getrennte Phasen aufgeteilt.
+- Ein neutraler F24-Impuls weckt zuerst den PC; erst nach der konfigurierbaren
+  Resume-Zeit wird der Anmeldebildschirm geöffnet und das Passwort eingegeben.
+- Standard-Resume-Zeit bestehender Installationen auf 2000 ms migriert; der
+  einstellbare Bereich beträgt jetzt 500 bis 10000 ms.
+
 ## 0.5.0 – 2026-09-15
 
 - Optionales Keep-awake im Captive Portal ergänzt.
