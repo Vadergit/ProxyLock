@@ -14,7 +14,7 @@
 #include "config.h"
 
 namespace {
-constexpr char kFirmwareVersion[] = "0.4.3";
+constexpr char kFirmwareVersion[] = "0.5.0";
 const IPAddress kPortalIp(192, 168, 4, 1);
 constexpr uint32_t kPortalWindowMs = 5UL * 60UL * 1000UL;
 constexpr uint32_t kLoginBlockMs = 30UL * 1000UL;
@@ -32,6 +32,8 @@ struct DeviceConfig {
   uint16_t wakeDelayMs = 200;
   uint8_t keyDelayMs = 10;
   uint8_t keyboardLayout = 0;  // 0 = US, 1 = German (Switzerland)
+  bool keepAwakeEnabled = false;
+  uint16_t keepAwakeIntervalSeconds = 45;
   bool portalAuthEnabled = false;
   String adminSalt;
   String adminHash;
@@ -63,6 +65,7 @@ uint32_t disconnectedSince = 0;
 bool disconnectPending = false;
 uint32_t lastRssiSample = 0;
 uint32_t lastAncsAttempt = 0;
+uint32_t lastKeepAwakeAt = 0;
 bool portalRunning = false;
 uint32_t portalStartedAt = 0;
 uint32_t lastPortalClientSeenAt = 0;
@@ -136,6 +139,9 @@ void loadConfig() {
   config.wakeDelayMs = static_cast<uint16_t>(preferences.getUInt("wake_ms", 200U));
   config.keyDelayMs = static_cast<uint8_t>(preferences.getUInt("key_ms", 10U));
   config.keyboardLayout = static_cast<uint8_t>(preferences.getUInt("kbd_layout", 0U));
+  config.keepAwakeEnabled = preferences.getBool("keep_awake", false);
+  config.keepAwakeIntervalSeconds = static_cast<uint16_t>(
+      preferences.getUInt("awake_sec", 45U));
   config.portalAuthEnabled = preferences.getBool("portal_auth", false);
   config.adminSalt = preferences.getString("admin_salt", "");
   config.adminHash = preferences.getString("admin_hash", "");
@@ -153,6 +159,8 @@ void loadConfig() {
     preferences.putBool("timing_v2", true);
   }
   if (config.keyboardLayout > 1) config.keyboardLayout = 0;
+  config.keepAwakeIntervalSeconds = constrain(
+      config.keepAwakeIntervalSeconds, 15, 300);
   if (config.adminSalt.isEmpty() || config.adminHash.length() != 64) {
     config.portalAuthEnabled = false;
   }
@@ -169,6 +177,8 @@ void saveConfig() {
   preferences.putUInt("wake_ms", config.wakeDelayMs);
   preferences.putUInt("key_ms", config.keyDelayMs);
   preferences.putUInt("kbd_layout", config.keyboardLayout);
+  preferences.putBool("keep_awake", config.keepAwakeEnabled);
+  preferences.putUInt("awake_sec", config.keepAwakeIntervalSeconds);
   preferences.putBool("portal_auth", config.portalAuthEnabled);
   preferences.putString("admin_salt", config.adminSalt);
   preferences.putString("admin_hash", config.adminHash);
@@ -224,7 +234,11 @@ void sendSetupPage(const String& error = "") {
   body += String(config.wakeDelayMs);
   body += F("' required><div class='hint'>Standard: 200 ms. Bei Bedarf erhöhen.</div></div><div><label for='key_delay'>Pause pro Zeichen (ms)</label><input id='key_delay' name='key_delay' type='number' min='5' max='150' step='5' value='");
   body += String(config.keyDelayMs);
-  body += F("' required><div class='hint'>Bei fehlenden Zeichen auf 50–80 ms erhöhen.</div></div><div class='full'><label for='login_password'>Windows PIN/Kennwort bzw. macOS-Passwort</label><input id='login_password' name='login_password' type='password' autocomplete='new-password' placeholder='");
+  body += F("' required><div class='hint'>Bei fehlenden Zeichen auf 50–80 ms erhöhen.</div></div><div class='full'><label style='font-weight:500'><input style='width:auto;margin-right:7px' type='checkbox' name='keep_awake' value='1'");
+  if (config.keepAwakeEnabled) body += F(" checked");
+  body += F("> Computer wach halten, solange Telefon verbunden und in Reichweite ist</label><div style='margin-top:12px'><label for='keep_awake_interval'>Keep-awake-Intervall in Sekunden</label><input id='keep_awake_interval' name='keep_awake_interval' type='number' min='15' max='300' step='5' value='");
+  body += String(config.keepAwakeIntervalSeconds);
+  body += F("' required><div class='hint'>Standard: 45 Sekunden. Sendet einen unbenutzten F24-Tastenimpuls.</div></div></div><div class='full'><label for='login_password'>Windows PIN/Kennwort bzw. macOS-Passwort</label><input id='login_password' name='login_password' type='password' autocomplete='new-password' placeholder='");
   body += first ? "Passwort eingeben oder leer lassen" : "Leer lassen = unverändert";
   body += F("'><div class='hint'>Windows erwartet häufig die Windows-Hello-PIN statt des Microsoft-Kontopassworts. Nur druckbare ASCII-Zeichen verwenden; das Tastaturlayout des Anmeldebildschirms muss passen.</div>"
             "<label style='margin-top:12px;font-weight:500'><input style='width:auto;margin-right:7px' type='checkbox' name='clear_login' value='1'> Gespeichertes Anmeldepasswort löschen</label>"
@@ -268,6 +282,8 @@ void handleSave() {
   const int wakeDelay = webServer.arg("wake_delay").toInt();
   const int keyDelay = webServer.arg("key_delay").toInt();
   const String keyboardLayout = webServer.arg("keyboard_layout");
+  const bool keepAwakeEnabled = webServer.hasArg("keep_awake");
+  const int keepAwakeInterval = webServer.arg("keep_awake_interval").toInt();
   const String newLoginPassword = webServer.arg("login_password");
   const bool portalAuthEnabled = webServer.hasArg("portal_auth");
   const String portalPassword = webServer.arg("portal_password");
@@ -282,6 +298,7 @@ void handleSave() {
       distance < 0.2F || distance > 10.0F || calibration < -90 || calibration > -30 ||
       wakeDelay < 100 || wakeDelay > 5000 || keyDelay < 5 || keyDelay > 150 ||
       (keyboardLayout != "us" && keyboardLayout != "ch") ||
+      keepAwakeInterval < 15 || keepAwakeInterval > 300 ||
       !validLoginPassword(newLoginPassword) || passwordInvalid) {
     sendSetupPage("Bitte prüfe die Werte und Mindestlängen."); return;
   }
@@ -296,6 +313,8 @@ void handleSave() {
   config.wakeDelayMs = static_cast<uint16_t>(wakeDelay);
   config.keyDelayMs = static_cast<uint8_t>(keyDelay);
   config.keyboardLayout = keyboardLayout == "ch" ? 1 : 0;
+  config.keepAwakeEnabled = keepAwakeEnabled;
+  config.keepAwakeIntervalSeconds = static_cast<uint16_t>(keepAwakeInterval);
   if (webServer.hasArg("clear_login")) config.loginPassword = "";
   else if (!newLoginPassword.isEmpty()) config.loginPassword = newLoginPassword;
   config.portalAuthEnabled = portalAuthEnabled;
@@ -624,6 +643,19 @@ void updatePresence() {
   const uint32_t hold = target == PresenceState::kNear ? Config::kNearHoldMs : Config::kFarHoldMs;
   if (now - conditionSince >= hold) changePresence(target);
 }
+
+void updateKeepAwake() {
+  const uint32_t now = millis();
+  if (!config.keepAwakeEnabled || !bleConnected || presence != PresenceState::kNear) {
+    lastKeepAwakeAt = now;
+    return;
+  }
+  const uint32_t intervalMs =
+      static_cast<uint32_t>(config.keepAwakeIntervalSeconds) * 1000UL;
+  if (now - lastKeepAwakeAt < intervalMs) return;
+  keyboard.write(KEY_F24);
+  lastKeepAwakeAt = now;
+}
 }  // namespace
 
 void setup() {
@@ -647,7 +679,7 @@ void loop() {
       if (now - idleSince >= kPortalWindowMs) stopPortal();
     }
   }
-  if (config.configured) { trySetupAncs(); updatePresence(); }
+  if (config.configured) { trySetupAncs(); updatePresence(); updateKeepAwake(); }
   if (restartPending && millis() - restartAt >= 1200) ESP.restart();
   delay(3);
 }

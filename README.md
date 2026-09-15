@@ -27,6 +27,7 @@ Cloudkonto werden nicht benötigt.
   des Telefons weiterhin erscheint;
 - USB-HID-Tastatur ausschließlich gegenüber dem Computer;
 - optionaler Passwortschutz für die Weboberfläche;
+- optionales Keep-awake bei verbundener, naher BLE-Quelle;
 - Portal bei jedem Neustart mindestens fünf Minuten verfügbar;
 - keine App, kein Internetzugang und kein Cloudkonto erforderlich.
 
@@ -46,8 +47,8 @@ fertigen Image kompatibel.
 ## Schnellstart mit fertiger Firmware
 
 Die vollständige 4-MB-Firmware befindet sich unter
-[`firmware/proxylock-esp32s3-4mb-v0.4.3.bin`](firmware/proxylock-esp32s3-4mb-v0.4.3.bin)
-und zusätzlich im GitHub-Release `v0.4.3`.
+[`firmware/proxylock-esp32s3-4mb-v0.5.0.bin`](firmware/proxylock-esp32s3-4mb-v0.5.0.bin)
+und zusätzlich im GitHub-Release `v0.5.0`.
 
 ### 1. Flashmodus aktivieren
 
@@ -75,13 +76,13 @@ Firmware unter macOS/Linux flashen (Port entsprechend ersetzen):
 ```sh
 python3 -m esptool --chip esp32s3 \
   --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.3.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.0.bin
 ```
 
 Unter Windows sieht der Port beispielsweise so aus:
 
 ```powershell
-py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.3.bin
+py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.0.bin
 ```
 
 Danach das Board kurz trennen und ohne gedrückte BOOT-Taste wieder verbinden.
@@ -131,14 +132,24 @@ sofort eine Aktion auslösen.
 - Die **Pause pro Zeichen** zunächst auf `50 ms` stellen.
 - Das Passwort testweise in einem leeren Editorfeld ausgeben lassen und prüfen,
   ob Zeichen fehlen oder vertauscht sind.
-- ProxyLock verwendet für druckbare Zeichen eine US-Tastenbelegung. Bei Schweizer
-  oder deutscher Windows-Belegung unterscheiden sich insbesondere `Y/Z` und
-  Sonderzeichen. Für den ersten Test nur Ziffern und layoutgleiche Buchstaben
-  verwenden oder den Anmeldebildschirm auf US-Layout stellen.
+- Ist ein anderes als das ausgewählte Tastaturlayout aktiv, können insbesondere
+  `Y/Z` und Sonderzeichen vertauscht werden.
 
 Ab Version 0.4.1 leert ProxyLock das Windows-Eingabefeld vor der Eingabe, wartet
 konfigurierbar auf den Anmeldebildschirm und sendet jedes Zeichen mit einer
 separaten Pause. Seit Version 0.4.3 sind die Standardwerte `200 ms` und `10 ms`.
+
+## Keep-awake
+
+Im Portal kann **„Computer wach halten, solange Telefon verbunden und in
+Reichweite ist“** aktiviert werden. ProxyLock sendet dann standardmäßig alle
+45 Sekunden einen kurzen `F24`-Tastenimpuls. Diese Taste ist normalerweise
+unbelegt und erzeugt kein sichtbares Zeichen, zählt aber als Eingabeaktivität.
+
+Keep-awake läuft nur, wenn Bluetooth verbunden ist und das Telefon als **nah**
+erkannt wurde. Sobald das Telefon ausserhalb des konfigurierten Grenzwerts liegt
+oder die Verbindung abbricht, werden keine weiteren Impulse gesendet. Das
+Intervall kann zwischen 15 und 300 Sekunden eingestellt werden.
 
 ## Abstand richtig einstellen
 
@@ -185,7 +196,7 @@ gelöscht und ProxyLock neu eingerichtet werden:
 ```sh
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 erase-flash
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.3.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.5.0.bin
 ```
 
 Unter Windows den Port und `python3` entsprechend durch `COM…` und `py` ersetzen.

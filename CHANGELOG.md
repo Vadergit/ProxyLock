@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 – 2026-09-15
+
+- Optionales Keep-awake im Captive Portal ergänzt.
+- Konfigurierbares Intervall von 15 bis 300 Sekunden.
+- Unbelegten F24-Impuls zur Verhinderung des Ruhezustands verwendet.
+- Keep-awake stoppt automatisch bei Entfernung oder BLE-Verbindungsverlust.
+
 ## 0.4.3 – 2026-09-15
 
 - Standard-Aufwachzeit auf 200 ms gesetzt.
