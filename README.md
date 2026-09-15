@@ -46,8 +46,8 @@ fertigen Image kompatibel.
 ## Schnellstart mit fertiger Firmware
 
 Die vollständige 4-MB-Firmware befindet sich unter
-[`firmware/proxylock-esp32s3-4mb-v0.4.2.bin`](firmware/proxylock-esp32s3-4mb-v0.4.2.bin)
-und zusätzlich im GitHub-Release `v0.4.2`.
+[`firmware/proxylock-esp32s3-4mb-v0.4.3.bin`](firmware/proxylock-esp32s3-4mb-v0.4.3.bin)
+und zusätzlich im GitHub-Release `v0.4.3`.
 
 ### 1. Flashmodus aktivieren
 
@@ -75,13 +75,13 @@ Firmware unter macOS/Linux flashen (Port entsprechend ersetzen):
 ```sh
 python3 -m esptool --chip esp32s3 \
   --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.2.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.3.bin
 ```
 
 Unter Windows sieht der Port beispielsweise so aus:
 
 ```powershell
-py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.2.bin
+py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.3.bin
 ```
 
 Danach das Board kurz trennen und ohne gedrückte BOOT-Taste wieder verbinden.
@@ -138,7 +138,7 @@ sofort eine Aktion auslösen.
 
 Ab Version 0.4.1 leert ProxyLock das Windows-Eingabefeld vor der Eingabe, wartet
 konfigurierbar auf den Anmeldebildschirm und sendet jedes Zeichen mit einer
-separaten Pause.
+separaten Pause. Seit Version 0.4.3 sind die Standardwerte `200 ms` und `10 ms`.
 
 ## Abstand richtig einstellen
 
@@ -185,7 +185,7 @@ gelöscht und ProxyLock neu eingerichtet werden:
 ```sh
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 erase-flash
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.2.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.3.bin
 ```
 
 Unter Windows den Port und `python3` entsprechend durch `COM…` und `py` ersetzen.

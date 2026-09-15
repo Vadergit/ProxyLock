@@ -14,7 +14,7 @@
 #include "config.h"
 
 namespace {
-constexpr char kFirmwareVersion[] = "0.4.2";
+constexpr char kFirmwareVersion[] = "0.4.3";
 const IPAddress kPortalIp(192, 168, 4, 1);
 constexpr uint32_t kPortalWindowMs = 5UL * 60UL * 1000UL;
 constexpr uint32_t kLoginBlockMs = 30UL * 1000UL;
@@ -29,8 +29,8 @@ struct DeviceConfig {
   float distanceMetres = 2.0F;
   int rssiAtOneMetre = -59;
   String loginPassword;
-  uint16_t wakeDelayMs = 1500;
-  uint8_t keyDelayMs = 30;
+  uint16_t wakeDelayMs = 200;
+  uint8_t keyDelayMs = 10;
   uint8_t keyboardLayout = 0;  // 0 = US, 1 = German (Switzerland)
   bool portalAuthEnabled = false;
   String adminSalt;
@@ -133,9 +133,8 @@ void loadConfig() {
   config.distanceMetres = preferences.getFloat("distance", 2.0F);
   config.rssiAtOneMetre = preferences.getInt("rssi1m", -59);
   config.loginPassword = preferences.getString("login_pw", "");
-  config.wakeDelayMs = static_cast<uint16_t>(preferences.getUInt(
-      "wake_ms", config.macOs ? 500U : 1500U));
-  config.keyDelayMs = static_cast<uint8_t>(preferences.getUInt("key_ms", 30U));
+  config.wakeDelayMs = static_cast<uint16_t>(preferences.getUInt("wake_ms", 200U));
+  config.keyDelayMs = static_cast<uint8_t>(preferences.getUInt("key_ms", 10U));
   config.keyboardLayout = static_cast<uint8_t>(preferences.getUInt("kbd_layout", 0U));
   config.portalAuthEnabled = preferences.getBool("portal_auth", false);
   config.adminSalt = preferences.getString("admin_salt", "");
@@ -144,8 +143,15 @@ void loadConfig() {
   config.rssiAtOneMetre = constrain(config.rssiAtOneMetre, -90, -30);
   if (config.bleName.isEmpty() || config.bleName.length() > 20) config.bleName = "ProxyLock";
   if (config.blePasskey < 100000 || config.blePasskey > 999999) config.blePasskey = 123456;
-  config.wakeDelayMs = constrain(config.wakeDelayMs, 300, 5000);
+  config.wakeDelayMs = constrain(config.wakeDelayMs, 100, 5000);
   config.keyDelayMs = constrain(config.keyDelayMs, 5, 150);
+  if (!preferences.getBool("timing_v2", false)) {
+    config.wakeDelayMs = 200;
+    config.keyDelayMs = 10;
+    preferences.putUInt("wake_ms", config.wakeDelayMs);
+    preferences.putUInt("key_ms", config.keyDelayMs);
+    preferences.putBool("timing_v2", true);
+  }
   if (config.keyboardLayout > 1) config.keyboardLayout = 0;
   if (config.adminSalt.isEmpty() || config.adminHash.length() != 64) {
     config.portalAuthEnabled = false;
@@ -214,9 +220,9 @@ void sendSetupPage(const String& error = "") {
   body += config.keyboardLayout == 1 ? F("<option value='us'>English (US)</option><option value='ch' selected>Deutsch (Schweiz)</option>") : F("<option value='us' selected>English (US)</option><option value='ch'>Deutsch (Schweiz)</option>");
   body += F("</select></div><div><label for='distance'>Schaltabstand in Metern</label><input id='distance' name='distance' type='number' min='.2' max='10' step='.1' value='");
   body += String(config.distanceMetres, 1);
-  body += F("' required></div><div><label for='wake_delay'>Wartezeit nach Aufwecken (ms)</label><input id='wake_delay' name='wake_delay' type='number' min='300' max='5000' step='100' value='");
+  body += F("' required></div><div><label for='wake_delay'>Wartezeit nach Aufwecken (ms)</label><input id='wake_delay' name='wake_delay' type='number' min='100' max='5000' step='50' value='");
   body += String(config.wakeDelayMs);
-  body += F("' required><div class='hint'>Für Windows empfohlen: 1500–2500 ms.</div></div><div><label for='key_delay'>Pause pro Zeichen (ms)</label><input id='key_delay' name='key_delay' type='number' min='5' max='150' step='5' value='");
+  body += F("' required><div class='hint'>Standard: 200 ms. Bei Bedarf erhöhen.</div></div><div><label for='key_delay'>Pause pro Zeichen (ms)</label><input id='key_delay' name='key_delay' type='number' min='5' max='150' step='5' value='");
   body += String(config.keyDelayMs);
   body += F("' required><div class='hint'>Bei fehlenden Zeichen auf 50–80 ms erhöhen.</div></div><div class='full'><label for='login_password'>Windows PIN/Kennwort bzw. macOS-Passwort</label><input id='login_password' name='login_password' type='password' autocomplete='new-password' placeholder='");
   body += first ? "Passwort eingeben oder leer lassen" : "Leer lassen = unverändert";
@@ -274,7 +280,7 @@ void handleSave() {
                                 portalPassword != portalPasswordConfirm);
   if (!validBleName(name) || pinText.length() != 6 || pinText.toInt() < 100000 ||
       distance < 0.2F || distance > 10.0F || calibration < -90 || calibration > -30 ||
-      wakeDelay < 300 || wakeDelay > 5000 || keyDelay < 5 || keyDelay > 150 ||
+      wakeDelay < 100 || wakeDelay > 5000 || keyDelay < 5 || keyDelay > 150 ||
       (keyboardLayout != "us" && keyboardLayout != "ch") ||
       !validLoginPassword(newLoginPassword) || passwordInvalid) {
     sendSetupPage("Bitte prüfe die Werte und Mindestlängen."); return;

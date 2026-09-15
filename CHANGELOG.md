@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 – 2026-09-15
+
+- Standard-Aufwachzeit auf 200 ms gesetzt.
+- Standard-Zeichenpause auf 10 ms gesetzt.
+- Bestehende Installationen einmalig auf die neuen Werte migriert.
+- Untergrenze der konfigurierbaren Aufwachzeit auf 100 ms reduziert.
+
 ## 0.4.2 – 2026-09-15
 
 - Tastaturlayout im Captive Portal auswählbar gemacht.
