@@ -14,7 +14,7 @@
 #include "config.h"
 
 namespace {
-constexpr char kFirmwareVersion[] = "0.4.1";
+constexpr char kFirmwareVersion[] = "0.4.2";
 const IPAddress kPortalIp(192, 168, 4, 1);
 constexpr uint32_t kPortalWindowMs = 5UL * 60UL * 1000UL;
 constexpr uint32_t kLoginBlockMs = 30UL * 1000UL;
@@ -31,6 +31,7 @@ struct DeviceConfig {
   String loginPassword;
   uint16_t wakeDelayMs = 1500;
   uint8_t keyDelayMs = 30;
+  uint8_t keyboardLayout = 0;  // 0 = US, 1 = German (Switzerland)
   bool portalAuthEnabled = false;
   String adminSalt;
   String adminHash;
@@ -135,6 +136,7 @@ void loadConfig() {
   config.wakeDelayMs = static_cast<uint16_t>(preferences.getUInt(
       "wake_ms", config.macOs ? 500U : 1500U));
   config.keyDelayMs = static_cast<uint8_t>(preferences.getUInt("key_ms", 30U));
+  config.keyboardLayout = static_cast<uint8_t>(preferences.getUInt("kbd_layout", 0U));
   config.portalAuthEnabled = preferences.getBool("portal_auth", false);
   config.adminSalt = preferences.getString("admin_salt", "");
   config.adminHash = preferences.getString("admin_hash", "");
@@ -144,6 +146,7 @@ void loadConfig() {
   if (config.blePasskey < 100000 || config.blePasskey > 999999) config.blePasskey = 123456;
   config.wakeDelayMs = constrain(config.wakeDelayMs, 300, 5000);
   config.keyDelayMs = constrain(config.keyDelayMs, 5, 150);
+  if (config.keyboardLayout > 1) config.keyboardLayout = 0;
   if (config.adminSalt.isEmpty() || config.adminHash.length() != 64) {
     config.portalAuthEnabled = false;
   }
@@ -159,6 +162,7 @@ void saveConfig() {
   preferences.putString("login_pw", config.loginPassword);
   preferences.putUInt("wake_ms", config.wakeDelayMs);
   preferences.putUInt("key_ms", config.keyDelayMs);
+  preferences.putUInt("kbd_layout", config.keyboardLayout);
   preferences.putBool("portal_auth", config.portalAuthEnabled);
   preferences.putString("admin_salt", config.adminSalt);
   preferences.putString("admin_hash", config.adminHash);
@@ -206,6 +210,8 @@ void sendSetupPage(const String& error = "") {
   body += F("<div class='warning'>Das Setup-WLAN ist derzeit offen. Konfiguriere ProxyLock nur in einer vertrauenswürdigen Umgebung.</div>");
   body += F("<form method='post' action='/save'><div class='card'><h2>Computer</h2><div class='grid'><div><label for='os'>Betriebssystem</label><select id='os' name='os'>");
   body += config.macOs ? F("<option value='mac' selected>macOS</option><option value='windows'>Windows</option>") : F("<option value='mac'>macOS</option><option value='windows' selected>Windows</option>");
+  body += F("</select></div><div><label for='keyboard_layout'>Tastaturlayout am Anmeldebildschirm</label><select id='keyboard_layout' name='keyboard_layout'>");
+  body += config.keyboardLayout == 1 ? F("<option value='us'>English (US)</option><option value='ch' selected>Deutsch (Schweiz)</option>") : F("<option value='us' selected>English (US)</option><option value='ch'>Deutsch (Schweiz)</option>");
   body += F("</select></div><div><label for='distance'>Schaltabstand in Metern</label><input id='distance' name='distance' type='number' min='.2' max='10' step='.1' value='");
   body += String(config.distanceMetres, 1);
   body += F("' required></div><div><label for='wake_delay'>Wartezeit nach Aufwecken (ms)</label><input id='wake_delay' name='wake_delay' type='number' min='300' max='5000' step='100' value='");
@@ -255,6 +261,7 @@ void handleSave() {
   const int calibration = webServer.arg("rssi1m").toInt();
   const int wakeDelay = webServer.arg("wake_delay").toInt();
   const int keyDelay = webServer.arg("key_delay").toInt();
+  const String keyboardLayout = webServer.arg("keyboard_layout");
   const String newLoginPassword = webServer.arg("login_password");
   const bool portalAuthEnabled = webServer.hasArg("portal_auth");
   const String portalPassword = webServer.arg("portal_password");
@@ -268,6 +275,7 @@ void handleSave() {
   if (!validBleName(name) || pinText.length() != 6 || pinText.toInt() < 100000 ||
       distance < 0.2F || distance > 10.0F || calibration < -90 || calibration > -30 ||
       wakeDelay < 300 || wakeDelay > 5000 || keyDelay < 5 || keyDelay > 150 ||
+      (keyboardLayout != "us" && keyboardLayout != "ch") ||
       !validLoginPassword(newLoginPassword) || passwordInvalid) {
     sendSetupPage("Bitte prüfe die Werte und Mindestlängen."); return;
   }
@@ -281,6 +289,7 @@ void handleSave() {
   config.rssiAtOneMetre = calibration;
   config.wakeDelayMs = static_cast<uint16_t>(wakeDelay);
   config.keyDelayMs = static_cast<uint8_t>(keyDelay);
+  config.keyboardLayout = keyboardLayout == "ch" ? 1 : 0;
   if (webServer.hasArg("clear_login")) config.loginPassword = "";
   else if (!newLoginPassword.isEmpty()) config.loginPassword = newLoginPassword;
   config.portalAuthEnabled = portalAuthEnabled;
@@ -390,6 +399,86 @@ void sendLockAction() {
   delay(80); keyboard.releaseAll();
 }
 
+void sendRawKey(uint8_t usage, bool shift = false, bool altGr = false) {
+  if (shift) keyboard.press(KEY_LEFT_SHIFT);
+  if (altGr) keyboard.press(KEY_RIGHT_ALT);
+  keyboard.pressRaw(usage);
+  delay(12);
+  keyboard.releaseAll();
+}
+
+bool sendSwissGermanCharacter(char character) {
+  if (character >= 'a' && character <= 'z') {
+    uint8_t usage = static_cast<uint8_t>(0x04 + character - 'a');
+    if (character == 'y') usage = 0x1D;
+    else if (character == 'z') usage = 0x1C;
+    sendRawKey(usage);
+    return true;
+  }
+  if (character >= 'A' && character <= 'Z') {
+    const char lower = static_cast<char>(character - 'A' + 'a');
+    uint8_t usage = static_cast<uint8_t>(0x04 + lower - 'a');
+    if (lower == 'y') usage = 0x1D;
+    else if (lower == 'z') usage = 0x1C;
+    sendRawKey(usage, true);
+    return true;
+  }
+  if (character >= '1' && character <= '9') {
+    sendRawKey(static_cast<uint8_t>(0x1E + character - '1'));
+    return true;
+  }
+  if (character == '0') { sendRawKey(0x27); return true; }
+
+  uint8_t usage = 0;
+  bool shift = false;
+  bool altGr = false;
+  bool deadKey = false;
+  switch (character) {
+    case ' ': usage = 0x2C; break;
+    case '!': usage = 0x30; shift = true; break;
+    case '"': usage = 0x1F; shift = true; break;
+    case '#': usage = 0x20; altGr = true; break;
+    case '$': usage = 0x32; break;
+    case '%': usage = 0x22; shift = true; break;
+    case '&': usage = 0x23; shift = true; break;
+    case '\'': usage = 0x2D; break;
+    case '(': usage = 0x25; shift = true; break;
+    case ')': usage = 0x26; shift = true; break;
+    case '*': usage = 0x20; shift = true; break;
+    case '+': usage = 0x1E; shift = true; break;
+    case ',': usage = 0x36; break;
+    case '-': usage = 0x38; break;
+    case '.': usage = 0x37; break;
+    case '/': usage = 0x24; shift = true; break;
+    case ':': usage = 0x37; shift = true; break;
+    case ';': usage = 0x36; shift = true; break;
+    case '<': usage = 0x64; break;
+    case '=': usage = 0x27; shift = true; break;
+    case '>': usage = 0x64; shift = true; break;
+    case '?': usage = 0x2D; shift = true; break;
+    case '@': usage = 0x1F; altGr = true; break;
+    case '[': usage = 0x2F; altGr = true; break;
+    case '\\': usage = 0x64; altGr = true; break;
+    case ']': usage = 0x30; altGr = true; break;
+    case '^': usage = 0x2E; deadKey = true; break;
+    case '_': usage = 0x38; shift = true; break;
+    case '`': usage = 0x2E; shift = true; deadKey = true; break;
+    case '{': usage = 0x34; altGr = true; break;
+    case '|': usage = 0x24; altGr = true; break;
+    case '}': usage = 0x32; altGr = true; break;
+    case '~': usage = 0x2E; altGr = true; deadKey = true; break;
+    default: return false;
+  }
+  sendRawKey(usage, shift, altGr);
+  if (deadKey) sendRawKey(0x2C);
+  return true;
+}
+
+void sendPasswordCharacter(char character) {
+  if (config.keyboardLayout == 1) sendSwissGermanCharacter(character);
+  else keyboard.write(static_cast<uint8_t>(character));
+}
+
 void sendNearAction() {
   if (!Config::kUsbActionsEnabled) return;
   keyboard.write(' ');
@@ -407,7 +496,9 @@ void sendNearAction() {
   }
   for (size_t i = 0; i < config.loginPassword.length(); ++i) {
     const uint8_t character = static_cast<uint8_t>(config.loginPassword[i]);
-    if (character >= 0x20 && character <= 0x7E) keyboard.write(character);
+    if (character >= 0x20 && character <= 0x7E) {
+      sendPasswordCharacter(static_cast<char>(character));
+    }
     delay(config.keyDelayMs);
   }
   delay(150);

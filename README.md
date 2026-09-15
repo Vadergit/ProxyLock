@@ -46,8 +46,8 @@ fertigen Image kompatibel.
 ## Schnellstart mit fertiger Firmware
 
 Die vollständige 4-MB-Firmware befindet sich unter
-[`firmware/proxylock-esp32s3-4mb-v0.4.1.bin`](firmware/proxylock-esp32s3-4mb-v0.4.1.bin)
-und zusätzlich im GitHub-Release `v0.4.1`.
+[`firmware/proxylock-esp32s3-4mb-v0.4.2.bin`](firmware/proxylock-esp32s3-4mb-v0.4.2.bin)
+und zusätzlich im GitHub-Release `v0.4.2`.
 
 ### 1. Flashmodus aktivieren
 
@@ -75,13 +75,13 @@ Firmware unter macOS/Linux flashen (Port entsprechend ersetzen):
 ```sh
 python3 -m esptool --chip esp32s3 \
   --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.1.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.2.bin
 ```
 
 Unter Windows sieht der Port beispielsweise so aus:
 
 ```powershell
-py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.1.bin
+py -m esptool --chip esp32s3 --port COM5 write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.2.bin
 ```
 
 Danach das Board kurz trennen und ohne gedrückte BOOT-Taste wieder verbinden.
@@ -124,6 +124,9 @@ sofort eine Aktion auslösen.
 
 - Auf dem Windows-Anmeldebildschirm unter **Anmeldeoptionen** kontrollieren, ob
   gerade PIN oder Kennwort ausgewählt ist. ProxyLock muss genau diesen Wert senden.
+- Im Portal dasselbe Tastaturlayout wie am Windows-Anmeldebildschirm auswählen.
+  Für Schweizer Windows-Systeme ist das **Deutsch (Schweiz)**. Damit werden unter
+  anderem `Y/Z`, `*`, Klammern und weitere ASCII-Sonderzeichen korrekt umgesetzt.
 - Die **Wartezeit nach Aufwecken** zunächst auf `2000 ms` stellen.
 - Die **Pause pro Zeichen** zunächst auf `50 ms` stellen.
 - Das Passwort testweise in einem leeren Editorfeld ausgeben lassen und prüfen,
@@ -182,7 +185,7 @@ gelöscht und ProxyLock neu eingerichtet werden:
 ```sh
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 erase-flash
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem1101 \
-  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.1.bin
+  write-flash 0x0 firmware/proxylock-esp32s3-4mb-v0.4.2.bin
 ```
 
 Unter Windows den Port und `python3` entsprechend durch `COM…` und `py` ersetzen.

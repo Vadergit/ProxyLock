@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2 – 2026-09-15
+
+- Tastaturlayout im Captive Portal auswählbar gemacht.
+- Abbildung für `Deutsch (Schweiz)` ergänzt.
+- Schweizer `Y/Z` sowie druckbare ASCII-Sonderzeichen korrekt per USB-HID gesendet.
+- Insbesondere die falsche Ausgabe von `(` anstelle von `*` behoben.
+
 ## 0.4.1 – 2026-09-15
 
 - Windows-Aufwachzeit im Portal konfigurierbar gemacht.
